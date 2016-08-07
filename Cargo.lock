@@ -3,7 +3,7 @@ name = "chip-8-gtk"
 version = "0.1.0"
 dependencies = [
  "cairo-rs 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "chip_8_core 1.0.0 (git+https://github.com/alex34567/chip_8_core.git?rev=d294f98)",
+ "chip_8_core 2.0.0 (git+https://github.com/alex34567/chip-8-core?rev=4596e4f)",
  "gtk 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sdl2 0.21.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -62,8 +62,8 @@ dependencies = [
 
 [[package]]
 name = "chip_8_core"
-version = "1.0.0"
-source = "git+https://github.com/alex34567/chip_8_core.git?rev=d294f98#d294f98c1a44f6c9aff48e0f45a122fecb9dae5b"
+version = "2.0.0"
+source = "git+https://github.com/alex34567/chip-8-core?rev=4596e4f#4596e4f3fcadd898eb76eecbb9332fb318e50d76"
 dependencies = [
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

@@ -22,12 +22,12 @@ impl GtkKeyWrapper {
 }
 
 impl KeyWrapper for GtkKeyWrapper {
-    fn is_pushed(&self, key: u8) -> Result<bool, &'static str> {
+    fn is_pushed(&self, key: u8) -> bool {
         let test = 1 << key;
         if test & *self.0.borrow() != 0 {
-            Ok(true)
+            true
         } else {
-            Ok(false)
+            false
         }
     }
     fn get_key(&self) -> Option<u8> {
@@ -208,12 +208,8 @@ fn main() {
         context.set_source_rgb(0.0, 0.0, 0.0);
         context.paint();
         context.set_source_rgb(1.0, 1.0, 1.0);
-        for (y_pos, y) in chip8_borrowed.chip8.frame_buffer.iter().enumerate() {
-            for (x_pos, x) in y.iter().enumerate() {
-                if *x == 1 {
-                    context.rectangle(x_pos as f64 * scale, y_pos as f64 * scale, scale, scale)
-                }
-            }
+        for (x_pos, y_pos) in chip8_borrowed.chip8.frame_iter() {
+            context.rectangle(x_pos as f64 * scale, y_pos as f64 * scale, scale, scale);
         }
         context.fill();
         Inhibit(false)
@@ -225,7 +221,7 @@ fn main() {
         if run & !pause {
             let err;
             if let Err(error) = chip8_borrowed.chip8.run_vblank() {
-                gen_error(&window, error);
+                gen_error(&window, &format!("{}", error));
                 err = true;
             } else {
                 err = false;
