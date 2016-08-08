@@ -16,7 +16,7 @@ impl AudioCallback for SimpleAudioDevice {
     type Channel = f32;
 
     #[allow(unknown_lints)] // Overwriting a clippy lint.
-    #[allow(float_cmp)] // Signum only returns a 1, 0 or NAN.
+    #[allow(float_cmp)] // Signum only returns a 1, -1, 0 or NAN.
     fn callback(&mut self, out: &mut [f32]) {
         for x in out {
             if self.feq_inc.signum() == 1.0 {

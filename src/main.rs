@@ -46,19 +46,17 @@ struct GtkChip8 {
     chip8: Chip8<GtkKeyWrapper, SdlAudioWrapper<SimpleAudioDevice>>,
     running: bool,
     paused: bool,
-    rendered: bool,
     scale: f64,
 }
 
 impl GtkChip8 {
-    fn new(key_wrap: GtkKeyWrapper) -> GtkChip8 {
+    fn new(key_wrap: GtkKeyWrapper, scale: f64) -> GtkChip8 {
         let audio_wrap = sdl_sound::init_sound();
         GtkChip8 {
             chip8: Chip8::new(key_wrap, audio_wrap),
             running: false,
             paused: false,
-            rendered: false,
-            scale: 0.0,
+            scale: scale,
         }
     }
 }
@@ -133,9 +131,9 @@ fn main() {
     gtk::init().unwrap();
     let key_wrapper = GtkKeyWrapper::new();
     let key_wrapper_ref = key_wrapper.clone();
-    let chip8 = Rc::new(RefCell::new(GtkChip8::new(key_wrapper_ref)));
     let builder = gtk::Builder::new_from_file("window.ui");
     let window: gtk::Window = builder.get_object("main_window").unwrap();
+    let chip8 = Rc::new(RefCell::new(GtkChip8::new(key_wrapper_ref, 8.0)));
     let key_wrapper_ref = key_wrapper.clone();
     window.connect_key_press_event(move |_, key| {
         let mut keys = key_wrapper_ref.0.borrow_mut();
@@ -156,6 +154,17 @@ fn main() {
     window.connect_delete_event(|_, _| {
         gtk::main_quit();
         Inhibit(false)
+    });
+    let chip8_ref = chip8.clone();
+    window.connect_configure_event(move |_, event| {
+        let mut chip8_borrowed = chip8_ref.borrow_mut();
+        let (width, height) = event.get_size();
+        let mut scale = width as f64 / 64.0;
+        if height as f64 / 32.0 < scale {
+            scale = height as f64 / 32.0;
+        }
+        chip8_borrowed.scale = scale;
+        false
     });
     window.show_all();
     let open: gtk::MenuItem = builder.get_object("open_menu").unwrap();
@@ -192,24 +201,16 @@ fn main() {
     quit.connect_activate(|_| {
         gtk::main_quit()
     });
-    let chip8_ref = chip8.clone();
     let draw_area: gtk::DrawingArea = builder.get_object("draw_area").unwrap();
+    let chip8_ref = chip8.clone();
     draw_area.connect_draw(move |_, context| {
-        let mut chip8_borrowed = chip8_ref.borrow_mut();
-        if !chip8_borrowed.rendered {
-            let (_, _, width, hight) = context.clip_extents();
-            chip8_borrowed.scale = width / 64.0;
-            if hight / 32.0 < chip8_borrowed.scale {
-                chip8_borrowed.scale = hight / 32.0;
-            }
-            chip8_borrowed.rendered = true;
-        }
-        let scale = chip8_borrowed.scale;
+        let chip8_borrowed = chip8_ref.borrow();
+        context.scale(chip8_borrowed.scale, chip8_borrowed.scale);
         context.set_source_rgb(0.0, 0.0, 0.0);
         context.paint();
         context.set_source_rgb(1.0, 1.0, 1.0);
         for (x_pos, y_pos) in chip8_borrowed.chip8.frame_iter() {
-            context.rectangle(x_pos as f64 * scale, y_pos as f64 * scale, scale, scale);
+            context.rectangle(x_pos as f64, y_pos as f64, 1.0, 1.0);
         }
         context.fill();
         Inhibit(false)
@@ -230,7 +231,6 @@ fn main() {
                 chip8_borrowed.running = false;
             }
         }
-        chip8_borrowed.rendered = false;
         draw_area.queue_draw();
         Continue(true)
     });
