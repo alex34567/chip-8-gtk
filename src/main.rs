@@ -44,9 +44,9 @@ impl KeyWrapper for GtkKeyWrapper {
 
 struct GtkChip8 {
     chip8: Chip8<GtkKeyWrapper, SdlAudioWrapper<SimpleAudioDevice>>,
-    running: bool,
-    paused: bool,
+    pause_count: u8,
     scale: f64,
+    init: bool,
 }
 
 impl GtkChip8 {
@@ -54,18 +54,20 @@ impl GtkChip8 {
         let audio_wrap = sdl_sound::init_sound();
         GtkChip8 {
             chip8: Chip8::new(key_wrap, audio_wrap),
-            running: false,
-            paused: false,
+            pause_count: 1,
             scale: scale,
+            init: true,
         }
     }
 }
 
 fn gen_error<T: IsA<gtk::Window> + WindowExt>(window: &T, error: &str) {
     let flags = gtk::DialogFlags::empty();
-    let err = gtk::MessageDialog::new(
-        Some(window), flags, gtk::MessageType::Error, gtk::ButtonsType::Ok,
-        error);
+    let err = gtk::MessageDialog::new(Some(window),
+                                      flags,
+                                      gtk::MessageType::Error,
+                                      gtk::ButtonsType::Ok,
+                                      error);
     err.connect_response(move |err_window, _| {
         err_window.close();
     });
@@ -83,25 +85,27 @@ fn open_file<T: IsA<gtk::Window> + IsA<gtk::FileChooser> + IsA<gtk::Object> + Wi
     let wrapped = File::open(&path);
     if wrapped.is_err() {
         gen_error(window, "The file could not be opened");
-        return
+        return;
     }
     let mut file = wrapped.unwrap();
     let wrapped = file.metadata();
     if wrapped.is_err() {
         gen_error(window, "The file's metadata could be read");
-        return
+        return;
     }
     let metadata = wrapped.unwrap();
     if metadata.is_dir() {
         window.set_current_folder(&path);
-        return
+        return;
     }
-    gtk_chip8.chip8.reboot();
-    if gtk_chip8.chip8.load_prog_from_file(&mut file).is_err() {
+    if gtk_chip8.chip8.load_prog(&mut file).is_err() {
         gen_error(window, "The file could not be read");
-        return
+        return;
     }
-    gtk_chip8.running = true;
+    if gtk_chip8.init {
+        gtk_chip8.pause_count -= 1;
+        gtk_chip8.init = false;
+    }
     window.close();
 }
 
@@ -131,7 +135,7 @@ fn main() {
     gtk::init().unwrap();
     let key_wrapper = GtkKeyWrapper::new();
     let key_wrapper_ref = key_wrapper.clone();
-    let builder = gtk::Builder::new_from_file("window.ui");
+    let builder = gtk::Builder::new_from_string(include_str!("window.ui"));
     let window: gtk::Window = builder.get_object("main_window").unwrap();
     let chip8 = Rc::new(RefCell::new(GtkChip8::new(key_wrapper_ref, 8.0)));
     let key_wrapper_ref = key_wrapper.clone();
@@ -177,13 +181,11 @@ fn main() {
     });
     let window_ref: gtk::FileChooserDialog = file_window.clone();
     let chip8_ref = chip8.clone();
-    file_ok.connect_clicked(move |_| {
-        open_file(&window_ref, &mut chip8_ref.borrow_mut())
-    });
+    file_ok.connect_clicked(move |_| open_file(&window_ref, &mut chip8_ref.borrow_mut()));
     let chip8_ref = chip8.clone();
     file_window.connect_delete_event(move |window, _| {
         let mut chip8_borrowed = chip8_ref.borrow_mut();
-        chip8_borrowed.paused = false;
+        chip8_borrowed.pause_count -= 1;
         window.hide();
         Inhibit(true)
     });
@@ -194,17 +196,18 @@ fn main() {
     let chip8_ref = chip8.clone();
     open.connect_activate(move |_| {
         let mut chip8_borrowed = chip8_ref.borrow_mut();
-        chip8_borrowed.paused = true;
+        chip8_borrowed.pause_count += 1;
         file_window.show_all()
     });
     let quit: gtk::MenuItem = builder.get_object("quit_menu").unwrap();
-    quit.connect_activate(|_| {
-        gtk::main_quit()
-    });
+    quit.connect_activate(|_| gtk::main_quit());
     let draw_area: gtk::DrawingArea = builder.get_object("draw_area").unwrap();
     let chip8_ref = chip8.clone();
     draw_area.connect_draw(move |_, context| {
         let chip8_borrowed = chip8_ref.borrow();
+        if chip8_borrowed.chip8.state.is_err() {
+            return Inhibit(false)
+        }
         context.scale(chip8_borrowed.scale, chip8_borrowed.scale);
         context.set_source_rgb(0.0, 0.0, 0.0);
         context.paint();
@@ -217,9 +220,8 @@ fn main() {
     });
     gtk::timeout_add(16, move || {
         let mut chip8_borrowed = chip8.borrow_mut();
-        let run = chip8_borrowed.running;
-        let pause = chip8_borrowed.paused;
-        if run & !pause {
+        let pause_count = chip8_borrowed.pause_count;
+        if pause_count == 0 {
             let err;
             if let Err(error) = chip8_borrowed.chip8.run_vblank() {
                 gen_error(&window, &format!("{}", error));
@@ -228,7 +230,7 @@ fn main() {
                 err = false;
             }
             if err {
-                chip8_borrowed.running = false;
+                chip8_borrowed.pause_count += 1;
             }
         }
         draw_area.queue_draw();

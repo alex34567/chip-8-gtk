@@ -6,11 +6,8 @@ authors = ["Alex Eckhart <eckhartalex@gmail.com>"]
 [dependencies]
 cairo-rs = "0.1.0"
 sdl2 = "0.21"
+chip_8_core = { git = "https://github.com/alex34567/chip-8-core.git", rev = "13aa8c4"}
 
 [dependencies.gtk]
 version = "0.1.0"
 features = ["v3_10"]
-
-[dependencies.chip_8_core]
-git = "https://github.com/alex34567/chip-8-core"
-rev = "4596e4f"

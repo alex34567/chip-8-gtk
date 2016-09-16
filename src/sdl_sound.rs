@@ -15,7 +15,8 @@ pub struct SimpleAudioDevice {
 impl AudioCallback for SimpleAudioDevice {
     type Channel = f32;
 
-    #[allow(unknown_lints)] // Overwriting a clippy lint.
+    #[allow(unknown_lints)]
+    // Overwriting a clippy lint.
     #[allow(float_cmp)] // Signum only returns a 1, -1, 0 or NAN.
     fn callback(&mut self, out: &mut [f32]) {
         for x in out {
@@ -52,7 +53,7 @@ pub fn init_sound() -> SdlAudioWrapper<SimpleAudioDevice> {
     let spec = AudioSpecDesired {
         freq: None,
         channels: Some(1),
-        samples: None
+        samples: None,
     };
     let sdl_audio_device = sdl_audio.open_playback(None, &spec, |spec| {
         SimpleAudioDevice {
@@ -61,6 +62,7 @@ pub fn init_sound() -> SdlAudioWrapper<SimpleAudioDevice> {
             feq_target: 587.33,
             volume: 1.00,
         }
-    }).unwrap();
+    })
+        .unwrap();
     SdlAudioWrapper(sdl_audio_device)
 }
