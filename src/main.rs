@@ -46,7 +46,7 @@ struct GtkChip8 {
     chip8: Chip8<GtkKeyWrapper, SdlAudioWrapper<SimpleAudioDevice>>,
     pause_count: u8,
     scale: f64,
-    init: bool,
+    err: bool,
 }
 
 impl GtkChip8 {
@@ -56,7 +56,7 @@ impl GtkChip8 {
             chip8: Chip8::new(key_wrap, audio_wrap),
             pause_count: 1,
             scale: scale,
-            init: true,
+            err: true,
         }
     }
 }
@@ -102,9 +102,9 @@ fn open_file<T: IsA<gtk::Window> + IsA<gtk::FileChooser> + IsA<gtk::Object> + Wi
         gen_error(window, "The file could not be read");
         return;
     }
-    if gtk_chip8.init {
+    if gtk_chip8.err {
         gtk_chip8.pause_count -= 1;
-        gtk_chip8.init = false;
+        gtk_chip8.err = false;
     }
     window.close();
 }
@@ -231,6 +231,7 @@ fn main() {
             }
             if err {
                 chip8_borrowed.pause_count += 1;
+                chip8_borrowed.err = true;
             }
         }
         draw_area.queue_draw();
